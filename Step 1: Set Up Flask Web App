@@ -1,0 +1,31 @@
+import subprocess
+import os
+from flask import Flask, request, render_template, jsonify
+
+app = Flask(__name__)
+
+# Ensure Terraform is installed
+if not os.path.exists("/usr/local/bin/terraform"):
+    terraform_path = subprocess.run(["which", "terraform"], capture_output=True, text=True).stdout.strip()
+    if not terraform_path:
+        raise Exception("Terraform is not installed or not in PATH.")
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+@app.route("/run", methods=["POST"])
+def run_terraform():
+    command = request.form.get("command")
+    
+    if command not in ["terraform init", "terraform plan", "terraform apply", "terraform destroy"]:
+        return jsonify({"error": "Invalid command"}), 400
+
+    try:
+        result = subprocess.run(command.split(), capture_output=True, text=True)
+        return jsonify({"output": result.stdout, "error": result.stderr})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == "__main__":
+    app.run(debug=True)
